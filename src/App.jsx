@@ -1,0 +1,1267 @@
+import { useEffect, useState } from "react";
+import axios from "axios";
+import "./App.css";
+
+const modes = [
+  {
+    id: "general",
+    name: "General",
+    icon: "💬",
+  },
+  {
+    id: "coding",
+    name: "Coding",
+    icon: "👨‍💻",
+  },
+  {
+    id: "study",
+    name: "Study",
+    icon: "📚",
+  },
+];
+
+function App() {
+  const [messages, setMessages] = useState([]);
+  const [chatHistory, setChatHistory] = useState([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+
+  const [input, setInput] = useState("");
+  const [mode, setMode] = useState("general");
+  const [loading, setLoading] = useState(false);
+
+  // =====================================================
+  // AUTH STATES
+  // =====================================================
+
+  const [showAuth, setShowAuth] = useState(false);
+  const [authMode, setAuthMode] = useState("login");
+
+  const [authName, setAuthName] = useState("");
+  const [authEmail, setAuthEmail] = useState("");
+  const [authPassword, setAuthPassword] = useState("");
+
+  const [authLoading, setAuthLoading] = useState(false);
+  const [authError, setAuthError] = useState("");
+
+  const [user, setUser] = useState(() => {
+    const savedUser = localStorage.getItem("nexaai_user");
+
+    try {
+      return savedUser ? JSON.parse(savedUser) : null;
+    } catch {
+      return null;
+    }
+  });
+
+  // =====================================================
+  // GET AUTH TOKEN
+  // =====================================================
+
+  const getToken = () => {
+    return localStorage.getItem("nexaai_token");
+  };
+
+  // =====================================================
+  // LOAD CHAT HISTORY
+  // =====================================================
+
+  const loadChatHistory = async () => {
+    const token = getToken();
+
+    if (!token) {
+      setChatHistory([]);
+      return;
+    }
+
+    setHistoryLoading(true);
+
+    try {
+      const response = await axios.get(
+        "http://localhost:5000/api/history",
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      if (response.data.success) {
+        setChatHistory(response.data.history || []);
+      }
+    } catch (error) {
+      console.error(
+        "❌ History Load Error:",
+        error
+      );
+
+      // If token expired/invalid
+      if (error?.response?.status === 401) {
+        localStorage.removeItem("nexaai_token");
+        localStorage.removeItem("nexaai_user");
+
+        setUser(null);
+        setChatHistory([]);
+      }
+    } finally {
+      setHistoryLoading(false);
+    }
+  };
+
+  // =====================================================
+  // LOAD HISTORY WHEN USER EXISTS
+  // =====================================================
+
+  useEffect(() => {
+    if (user) {
+      loadChatHistory();
+    } else {
+      setChatHistory([]);
+    }
+  }, [user]);
+
+  // =====================================================
+  // SEND MESSAGE
+  // =====================================================
+
+  const sendMessage = async () => {
+    if (!input.trim() || loading) return;
+
+    const userMessage = input.trim();
+
+    const userMessageObject = {
+      role: "user",
+      content: userMessage,
+    };
+
+    setMessages((prev) => [
+      ...prev,
+      userMessageObject,
+    ]);
+
+    setInput("");
+    setLoading(true);
+
+    try {
+      const token = getToken();
+
+      const config = token
+        ? {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        : {};
+
+      const response = await axios.post(
+        "http://localhost:5000/api/chat",
+        {
+          message: userMessage,
+          history: messages,
+          mode: mode,
+        },
+        config
+      );
+
+      const aiMessage = {
+        role: "assistant",
+        content: response.data.reply,
+        feedback: null,
+        isFeedbackMessage: false,
+      };
+
+      setMessages((prev) => [
+        ...prev,
+        aiMessage,
+      ]);
+
+      // =================================================
+      // REFRESH HISTORY AFTER SUCCESSFUL CHAT
+      // =================================================
+
+      if (token) {
+        await loadChatHistory();
+      }
+    } catch (error) {
+      console.error(
+        "❌ Chat Error:",
+        error
+      );
+
+      if (error?.response?.status === 401) {
+        localStorage.removeItem("nexaai_token");
+        localStorage.removeItem("nexaai_user");
+
+        setUser(null);
+        setChatHistory([]);
+      }
+
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "assistant",
+          content:
+            error?.response?.data?.message ||
+            "❌ Unable to connect to NexaAI. Please check your backend server.",
+          feedback: null,
+          isFeedbackMessage: false,
+        },
+      ]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // =====================================================
+  // HANDLE FEEDBACK
+  // =====================================================
+
+  const handleFeedback = async (
+    messageIndex,
+    type
+  ) => {
+    const selectedMessage =
+      messages[messageIndex];
+
+    if (
+      !selectedMessage ||
+      selectedMessage.role !== "assistant" ||
+      selectedMessage.isFeedbackMessage
+    ) {
+      return;
+    }
+
+    const userMessage =
+      messages[messageIndex - 1];
+
+    if (
+      !userMessage ||
+      userMessage.role !== "user"
+    ) {
+      console.error(
+        "❌ User message not found for feedback."
+      );
+      return;
+    }
+
+    if (
+      selectedMessage.feedback === type
+    ) {
+      return;
+    }
+
+    // Mark selected feedback
+    setMessages((prev) =>
+      prev.map((message, index) =>
+        index === messageIndex
+          ? {
+              ...message,
+              feedback: type,
+            }
+          : message
+      )
+    );
+
+    try {
+      const response = await axios.post(
+        "http://localhost:5000/api/feedback",
+        {
+          message: userMessage.content,
+          aiResponse: selectedMessage.content,
+          feedback: type,
+          mode: mode,
+        }
+      );
+
+      if (!response.data.success) {
+        throw new Error(
+          response.data.message ||
+            "Failed to save feedback"
+        );
+      }
+
+      console.log(
+        "✅ Feedback saved successfully:",
+        response.data
+      );
+
+      // Different response for like/dislike
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "assistant",
+          content:
+            type === "like"
+              ? "Thank you for your feedback! 💙"
+              : "Thanks for letting me know. I’ll try to improve! 💙",
+          feedback: null,
+          isFeedbackMessage: true,
+        },
+      ]);
+    } catch (error) {
+      console.error(
+        "❌ Feedback save failed:",
+        error
+      );
+
+      setMessages((prev) =>
+        prev.map((message, index) =>
+          index === messageIndex
+            ? {
+                ...message,
+                feedback: null,
+              }
+            : message
+        )
+      );
+    }
+  };
+
+  // =====================================================
+  // OPEN AUTH MODAL
+  // =====================================================
+
+  const openAuth = (type = "login") => {
+    setAuthMode(type);
+
+    setAuthName("");
+    setAuthEmail("");
+    setAuthPassword("");
+    setAuthError("");
+
+    setShowAuth(true);
+  };
+
+  // =====================================================
+  // CLOSE AUTH MODAL
+  // =====================================================
+
+  const closeAuth = () => {
+    if (authLoading) return;
+
+    setShowAuth(false);
+    setAuthError("");
+    setAuthName("");
+    setAuthEmail("");
+    setAuthPassword("");
+  };
+
+  // =====================================================
+  // HANDLE AUTH
+  // =====================================================
+
+  const handleAuthSubmit = async (event) => {
+    event.preventDefault();
+
+    setAuthError("");
+
+    if (
+      !authEmail.trim() ||
+      !authPassword.trim()
+    ) {
+      setAuthError(
+        "Please enter your email and password."
+      );
+      return;
+    }
+
+    if (
+      authMode === "signup" &&
+      !authName.trim()
+    ) {
+      setAuthError(
+        "Please enter your name."
+      );
+      return;
+    }
+
+    if (
+      authMode === "signup" &&
+      authPassword.length < 6
+    ) {
+      setAuthError(
+        "Password must be at least 6 characters."
+      );
+      return;
+    }
+
+    setAuthLoading(true);
+
+    try {
+      const endpoint =
+        authMode === "signup"
+          ? "http://localhost:5000/api/auth/signup"
+          : "http://localhost:5000/api/auth/login";
+
+      const requestData =
+        authMode === "signup"
+          ? {
+              name: authName.trim(),
+              email: authEmail.trim(),
+              password: authPassword,
+            }
+          : {
+              email: authEmail.trim(),
+              password: authPassword,
+            };
+
+      const response = await axios.post(
+        endpoint,
+        requestData
+      );
+
+      if (!response.data.success) {
+        throw new Error(
+          response.data.message ||
+            "Authentication failed."
+        );
+      }
+
+      // Save JWT token
+      localStorage.setItem(
+        "nexaai_token",
+        response.data.token
+      );
+
+      // Save user
+      localStorage.setItem(
+        "nexaai_user",
+        JSON.stringify(
+          response.data.user
+        )
+      );
+
+      setUser(response.data.user);
+
+      // Close modal
+      setShowAuth(false);
+
+      setAuthName("");
+      setAuthEmail("");
+      setAuthPassword("");
+      setAuthError("");
+
+      console.log(
+        "✅ Authentication successful:",
+        response.data.user
+      );
+
+      // Load user's existing history
+      // after successful login/signup
+      setTimeout(() => {
+        loadChatHistory();
+      }, 0);
+    } catch (error) {
+      console.error(
+        "❌ Authentication Error:",
+        error
+      );
+
+      const message =
+        error?.response?.data?.message ||
+        error?.message ||
+        "Something went wrong. Please try again.";
+
+      setAuthError(message);
+    } finally {
+      setAuthLoading(false);
+    }
+  };
+
+  // =====================================================
+  // LOGOUT
+  // =====================================================
+
+  const handleLogout = () => {
+    localStorage.removeItem(
+      "nexaai_token"
+    );
+
+    localStorage.removeItem(
+      "nexaai_user"
+    );
+
+    setUser(null);
+
+    setChatHistory([]);
+
+    // Clear current chat
+    setMessages([]);
+
+    console.log(
+      "👋 Logged out successfully."
+    );
+  };
+
+  // =====================================================
+  // OPEN HISTORY CHAT
+  // =====================================================
+
+  const openHistoryChat = (chat) => {
+    setMessages([
+      {
+        role: "user",
+        content: chat.message,
+      },
+      {
+        role: "assistant",
+        content: chat.aiResponse,
+        feedback: null,
+        isFeedbackMessage: false,
+      },
+    ]);
+
+    setMode(
+      chat.mode || "general"
+    );
+  };
+
+  // =====================================================
+  // KEYBOARD
+  // =====================================================
+
+  const handleKeyDown = (event) => {
+    if (
+      event.key === "Enter" &&
+      !event.shiftKey
+    ) {
+      event.preventDefault();
+      sendMessage();
+    }
+  };
+
+  // =====================================================
+  // CLEAR CURRENT CHAT
+  // =====================================================
+
+  const clearChat = () => {
+    setMessages([]);
+  };
+
+  return (
+    <div className="app">
+
+      {/* =================================================
+          SIDEBAR
+      ================================================= */}
+
+      <aside className="sidebar">
+
+        <div className="logo">
+
+          <div className="logo-icon">
+            ✦
+          </div>
+
+          <div>
+            <h2>NexaAI</h2>
+            <span>
+              AI Assistant
+            </span>
+          </div>
+
+        </div>
+
+        <button
+          className="new-chat"
+          onClick={clearChat}
+        >
+          ＋ New Chat
+        </button>
+
+        {/* =================================================
+            MODES
+        ================================================= */}
+
+        <div className="sidebar-section">
+
+          <p className="section-title">
+            MODES
+          </p>
+
+          {modes.map((item) => (
+
+            <button
+              key={item.id}
+              className={`sidebar-mode ${
+                mode === item.id
+                  ? "selected"
+                  : ""
+              }`}
+              onClick={() =>
+                setMode(item.id)
+              }
+            >
+              <span>
+                {item.icon}
+              </span>
+
+              {item.name}
+            </button>
+
+          ))}
+
+        </div>
+
+        {/* =================================================
+            CHAT HISTORY
+        ================================================= */}
+
+        {user && (
+
+          <div className="sidebar-section history-section">
+
+            <p className="section-title">
+              RECENT CHATS
+            </p>
+
+            {historyLoading ? (
+
+              <p className="history-empty">
+                Loading history...
+              </p>
+
+            ) : chatHistory.length === 0 ? (
+
+              <p className="history-empty">
+                No chats yet
+              </p>
+
+            ) : (
+
+              <div className="history-list">
+
+                {chatHistory
+                  .slice(0, 10)
+                  .map((chat) => (
+
+                    <button
+                      key={chat._id}
+                      className="history-item"
+                      onClick={() =>
+                        openHistoryChat(
+                          chat
+                        )
+                      }
+                      title={chat.message}
+                    >
+
+                      <span className="history-icon">
+                        💬
+                      </span>
+
+                      <span className="history-text">
+
+                        {chat.message.length >
+                        32
+                          ? `${chat.message.substring(
+                              0,
+                              32
+                            )}...`
+                          : chat.message}
+
+                      </span>
+
+                    </button>
+
+                  ))}
+
+              </div>
+
+            )}
+
+          </div>
+
+        )}
+
+        {/* =================================================
+            SIDEBAR BOTTOM
+        ================================================= */}
+
+        <div className="sidebar-bottom">
+
+          <span className="status-dot"></span>
+
+          <div>
+            <strong>
+              AI Online
+            </strong>
+
+            <small>
+              Ready to help
+            </small>
+          </div>
+
+        </div>
+
+      </aside>
+
+      {/* =================================================
+          MAIN
+      ================================================= */}
+
+      <main className="main">
+
+        {/* =================================================
+            TOPBAR
+        ================================================= */}
+
+        <header className="topbar">
+
+          <span className="mode-label">
+
+            {
+              modes.find(
+                (item) =>
+                  item.id === mode
+              )?.icon
+            }{" "}
+
+            {
+              modes.find(
+                (item) =>
+                  item.id === mode
+              )?.name
+            }{" "}
+
+            Mode
+
+          </span>
+
+          <div className="topbar-actions">
+
+            <button
+              className="clear-chat"
+              onClick={clearChat}
+            >
+              Clear
+            </button>
+
+            {!user ? (
+
+              <button
+                className="auth-btn"
+                onClick={() =>
+                  openAuth("login")
+                }
+              >
+                Login / Sign Up
+              </button>
+
+            ) : (
+
+              <div className="user-menu">
+
+                <span className="user-name">
+                  👤 {user.name}
+                </span>
+
+                <button
+                  className="logout-btn"
+                  onClick={handleLogout}
+                >
+                  Logout
+                </button>
+
+              </div>
+
+            )}
+
+          </div>
+
+        </header>
+
+        {/* =================================================
+            CHAT AREA
+        ================================================= */}
+
+        <section className="chat-area">
+
+          {messages.length === 0 ? (
+
+            <div className="welcome">
+
+              <div className="welcome-logo">
+                ✦
+              </div>
+
+              <h1>
+                What can I help you with?
+              </h1>
+
+              <p>
+                Ask questions, write code,
+                learn new topics and solve
+                problems with AI.
+              </p>
+
+              <div className="suggestion-grid">
+
+                <button
+                  onClick={() =>
+                    setInput(
+                      "Explain JavaScript promises with an example."
+                    )
+                  }
+                >
+                  <span>
+                    👨‍💻
+                  </span>
+
+                  <strong>
+                    Explain Code
+                  </strong>
+
+                  <small>
+                    Understand programming
+                    concepts
+                  </small>
+
+                </button>
+
+                <button
+                  onClick={() =>
+                    setInput(
+                      "Explain artificial intelligence in simple words."
+                    )
+                  }
+                >
+                  <span>
+                    🧠
+                  </span>
+
+                  <strong>
+                    Learn Something
+                  </strong>
+
+                  <small>
+                    Understand difficult
+                    concepts
+                  </small>
+
+                </button>
+
+                <button
+                  onClick={() =>
+                    setInput(
+                      "Give me a Python coding problem for beginners."
+                    )
+                  }
+                >
+                  <span>
+                    💡
+                  </span>
+
+                  <strong>
+                    Practice
+                  </strong>
+
+                  <small>
+                    Improve your skills
+                  </small>
+
+                </button>
+
+                <button
+                  onClick={() =>
+                    setInput(
+                      "Explain recursion like I am a beginner."
+                    )
+                  }
+                >
+                  <span>
+                    📚
+                  </span>
+
+                  <strong>
+                    Study
+                  </strong>
+
+                  <small>
+                    Get help with studies
+                  </small>
+
+                </button>
+
+              </div>
+
+            </div>
+
+          ) : (
+
+            <div className="messages">
+
+              {messages.map(
+                (message, index) => (
+
+                  <div
+                    key={index}
+                    className={`message ${
+                      message.role ===
+                      "user"
+                        ? "user-message"
+                        : "assistant-message"
+                    }`}
+                  >
+
+                    <div className="message-avatar">
+
+                      {message.role ===
+                      "user"
+                        ? "👤"
+                        : "✦"}
+
+                    </div>
+
+                    <div className="message-body">
+
+                      <div className="message-name">
+
+                        {message.role ===
+                        "user"
+                          ? "You"
+                          : "NexaAI"}
+
+                      </div>
+
+                      <div className="message-content">
+                        {message.content}
+                      </div>
+
+                      {message.role ===
+                        "assistant" &&
+                        !message.isFeedbackMessage && (
+
+                        <div className="feedback-buttons">
+
+                          <button
+                            className={`feedback-btn ${
+                              message.feedback ===
+                              "like"
+                                ? "active"
+                                : ""
+                            }`}
+                            onClick={() =>
+                              handleFeedback(
+                                index,
+                                "like"
+                              )
+                            }
+                            title="Good response"
+                          >
+                            👍🏿
+                          </button>
+
+                          <button
+                            className={`feedback-btn ${
+                              message.feedback ===
+                              "dislike"
+                                ? "active"
+                                : ""
+                            }`}
+                            onClick={() =>
+                              handleFeedback(
+                                index,
+                                "dislike"
+                              )
+                            }
+                            title="Bad response"
+                          >
+                            👎🏿
+                          </button>
+
+                        </div>
+
+                      )}
+
+                    </div>
+
+                  </div>
+
+                )
+              )}
+
+              {loading && (
+
+                <div className="message assistant-message">
+
+                  <div className="message-avatar">
+                    ✦
+                  </div>
+
+                  <div className="message-body">
+
+                    <div className="message-name">
+                      NexaAI
+                    </div>
+
+                    <div className="typing">
+
+                      <span></span>
+                      <span></span>
+                      <span></span>
+
+                    </div>
+
+                  </div>
+
+                </div>
+
+              )}
+
+            </div>
+
+          )}
+
+        </section>
+
+        {/* =================================================
+            INPUT
+        ================================================= */}
+
+        <div className="input-wrapper">
+
+          <div className="input-box">
+
+            <button
+              className="attach-btn"
+              title="File upload coming soon"
+            >
+              ＋
+            </button>
+
+            <textarea
+              value={input}
+              onChange={(e) =>
+                setInput(
+                  e.target.value
+                )
+              }
+              onKeyDown={handleKeyDown}
+              placeholder={
+                mode === "coding"
+                  ? "Ask a coding question..."
+                  : mode === "study"
+                  ? "Ask about your studies..."
+                  : "Message NexaAI..."
+              }
+              rows="1"
+            />
+
+            <button
+              className="send-btn"
+              onClick={sendMessage}
+              disabled={
+                loading ||
+                !input.trim()
+              }
+            >
+              ↑
+            </button>
+
+          </div>
+
+          <p>
+            NexaAI may make mistakes.
+            Verify important information.
+          </p>
+
+        </div>
+
+      </main>
+
+      {/* =====================================================
+          LOGIN / SIGN UP MODAL
+      ===================================================== */}
+
+      {showAuth && (
+
+        <div
+          className="auth-overlay"
+          onClick={closeAuth}
+        >
+
+          <div
+            className="auth-modal"
+            onClick={(event) =>
+              event.stopPropagation()
+            }
+          >
+
+            <button
+              className="auth-close"
+              onClick={closeAuth}
+              disabled={authLoading}
+            >
+              ×
+            </button>
+
+            <div className="auth-logo">
+              ✦
+            </div>
+
+            <h2>
+
+              {authMode === "login"
+                ? "Welcome Back"
+                : "Create Your Account"}
+
+            </h2>
+
+            <p className="auth-subtitle">
+
+              {authMode === "login"
+                ? "Login to continue using NexaAI"
+                : "Join NexaAI and start exploring AI"}
+
+            </p>
+
+            <form
+              onSubmit={handleAuthSubmit}
+              className="auth-form"
+            >
+
+              {authMode === "signup" && (
+
+                <div className="auth-field">
+
+                  <label>
+                    Full Name
+                  </label>
+
+                  <input
+                    type="text"
+                    value={authName}
+                    onChange={(event) =>
+                      setAuthName(
+                        event.target.value
+                      )
+                    }
+                    placeholder="Enter your name"
+                    disabled={authLoading}
+                  />
+
+                </div>
+
+              )}
+
+              <div className="auth-field">
+
+                <label>
+                  Email
+                </label>
+
+                <input
+                  type="email"
+                  value={authEmail}
+                  onChange={(event) =>
+                    setAuthEmail(
+                      event.target.value
+                    )
+                  }
+                  placeholder="Enter your email"
+                  disabled={authLoading}
+                />
+
+              </div>
+
+              <div className="auth-field">
+
+                <label>
+                  Password
+                </label>
+
+                <input
+                  type="password"
+                  value={authPassword}
+                  onChange={(event) =>
+                    setAuthPassword(
+                      event.target.value
+                    )
+                  }
+                  placeholder={
+                    authMode === "signup"
+                      ? "Minimum 6 characters"
+                      : "Enter your password"
+                  }
+                  disabled={authLoading}
+                />
+
+              </div>
+
+              {authError && (
+
+                <div className="auth-error">
+                  {authError}
+                </div>
+
+              )}
+
+              <button
+                type="submit"
+                className="auth-submit"
+                disabled={authLoading}
+              >
+
+                {authLoading
+                  ? "Please wait..."
+                  : authMode === "login"
+                  ? "Login"
+                  : "Create Account"}
+
+              </button>
+
+            </form>
+
+            <div className="auth-switch">
+
+              {authMode === "login" ? (
+
+                <>
+                  <span>
+                    Don't have an account?
+                  </span>
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      openAuth("signup")
+                    }
+                    disabled={authLoading}
+                  >
+                    Create Account
+                  </button>
+                </>
+
+              ) : (
+
+                <>
+                  <span>
+                    Already have an account?
+                  </span>
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      openAuth("login")
+                    }
+                    disabled={authLoading}
+                  >
+                    Login
+                  </button>
+                </>
+
+              )}
+
+            </div>
+
+          </div>
+
+        </div>
+
+      )}
+
+    </div>
+  );
+}
+
+export default App;
