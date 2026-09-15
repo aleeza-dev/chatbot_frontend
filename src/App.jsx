@@ -1,6 +1,10 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
 import "./App.css";
+import ReactMarkdown from "react-markdown";
+
+const API_URL =
+  import.meta.env.VITE_API_URL || "http://localhost:5000";
 
 const modes = [
   {
@@ -77,7 +81,7 @@ function App() {
 
     try {
       const response = await axios.get(
-        "http://localhost:5000/api/history",
+        "${API_URL}/api/history",
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -153,7 +157,7 @@ function App() {
         : {};
 
       const response = await axios.post(
-        "http://localhost:5000/api/chat",
+        "${API_URL}/api/chat",
         {
           message: userMessage,
           history: messages,
@@ -263,7 +267,7 @@ function App() {
 
     try {
       const response = await axios.post(
-        "http://localhost:5000/api/feedback",
+        "${API_URL}/api/feedback",
         {
           message: userMessage.content,
           aiResponse: selectedMessage.content,
@@ -389,8 +393,8 @@ function App() {
     try {
       const endpoint =
         authMode === "signup"
-          ? "http://localhost:5000/api/auth/signup"
-          : "http://localhost:5000/api/auth/login";
+          ? "${API_URL}/api/auth/signup"
+          : "${API_URL}/api/auth/login";
 
       const requestData =
         authMode === "signup"
@@ -924,7 +928,7 @@ function App() {
                       </div>
 
                       <div className="message-content">
-                        {message.content}
+                      <ReactMarkdown>{msg.content}</ReactMarkdown>
                       </div>
 
                       {message.role ===
