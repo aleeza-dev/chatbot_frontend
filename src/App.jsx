@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
-import "./App.css";
 import ReactMarkdown from "react-markdown";
+import "./App.css";
 
 const API_URL =
   import.meta.env.VITE_API_URL || "http://localhost:5000";
@@ -47,6 +47,10 @@ function App() {
   const [authLoading, setAuthLoading] = useState(false);
   const [authError, setAuthError] = useState("");
 
+  // =====================================================
+  // CURRENT USER
+  // =====================================================
+
   const [user, setUser] = useState(() => {
     const savedUser = localStorage.getItem("nexaai_user");
 
@@ -66,6 +70,47 @@ function App() {
   };
 
   // =====================================================
+  // GET FRIENDLY API ERROR
+  // =====================================================
+
+  const getErrorMessage = (error, defaultMessage) => {
+    const status = error?.response?.status;
+
+    const backendMessage =
+      error?.response?.data?.message;
+
+    // Gemini temporary unavailable
+    if (status === 503) {
+      return "NexaAI is temporarily busy right now. Please try again in a few seconds. 💙";
+    }
+
+    // Gemini rate limit
+    if (status === 429) {
+      return "NexaAI is receiving too many requests right now. Please wait a moment and try again.";
+    }
+
+    // Unauthorized
+    if (status === 401) {
+      return "Your session has expired. Please login again.";
+    }
+
+    // Backend returned a normal message
+    if (
+      typeof backendMessage === "string" &&
+      backendMessage.trim()
+    ) {
+      return backendMessage;
+    }
+
+    // Network error
+    if (error?.code === "ERR_NETWORK") {
+      return "Unable to connect to NexaAI server. Please check your internet connection and try again.";
+    }
+
+    return defaultMessage;
+  };
+
+  // =====================================================
   // LOAD CHAT HISTORY
   // =====================================================
 
@@ -81,7 +126,7 @@ function App() {
 
     try {
       const response = await axios.get(
-        "${API_URL}/api/history",
+        `${API_URL}/api/history`,
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -90,7 +135,9 @@ function App() {
       );
 
       if (response.data.success) {
-        setChatHistory(response.data.history || []);
+        setChatHistory(
+          response.data.history || []
+        );
       }
     } catch (error) {
       console.error(
@@ -98,7 +145,6 @@ function App() {
         error
       );
 
-      // If token expired/invalid
       if (error?.response?.status === 401) {
         localStorage.removeItem("nexaai_token");
         localStorage.removeItem("nexaai_user");
@@ -130,12 +176,35 @@ function App() {
   const sendMessage = async () => {
     if (!input.trim() || loading) return;
 
+    const token = getToken();
+
+    // Login required
+    if (!token) {
+      setAuthMode("login");
+      setAuthError("");
+      setShowAuth(true);
+      return;
+    }
+
     const userMessage = input.trim();
 
     const userMessageObject = {
       role: "user",
       content: userMessage,
+      mode,
     };
+
+    // Save current conversation before adding new message
+    const currentHistory = messages
+      .filter(
+        (message) =>
+          message.role === "user" ||
+          message.role === "assistant"
+      )
+      .map((message) => ({
+        role: message.role,
+        content: message.content,
+      }));
 
     setMessages((prev) => [
       ...prev,
@@ -146,31 +215,28 @@ function App() {
     setLoading(true);
 
     try {
-      const token = getToken();
-
-      const config = token
-        ? {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          }
-        : {};
-
       const response = await axios.post(
-        "${API_URL}/api/chat",
+        `${API_URL}/api/chat`,
         {
           message: userMessage,
-          history: messages,
-          mode: mode,
+          history: currentHistory,
+          mode,
         },
-        config
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
       );
 
       const aiMessage = {
         role: "assistant",
-        content: response.data.reply,
+        content:
+          response.data.reply ||
+          "Sorry, NexaAI could not generate a response.",
         feedback: null,
         isFeedbackMessage: false,
+        mode,
       };
 
       setMessages((prev) => [
@@ -178,38 +244,52 @@ function App() {
         aiMessage,
       ]);
 
-      // =================================================
-      // REFRESH HISTORY AFTER SUCCESSFUL CHAT
-      // =================================================
-
-      if (token) {
-        await loadChatHistory();
-      }
+      // Refresh history
+      await loadChatHistory();
     } catch (error) {
       console.error(
         "❌ Chat Error:",
         error
       );
 
+      // Session expired
       if (error?.response?.status === 401) {
         localStorage.removeItem("nexaai_token");
         localStorage.removeItem("nexaai_user");
 
         setUser(null);
         setChatHistory([]);
-      }
 
-      setMessages((prev) => [
-        ...prev,
-        {
-          role: "assistant",
-          content:
-            error?.response?.data?.message ||
-            "❌ Unable to connect to NexaAI. Please check your backend server.",
-          feedback: null,
-          isFeedbackMessage: false,
-        },
-      ]);
+        setMessages((prev) => [
+          ...prev,
+          {
+            role: "assistant",
+            content:
+              "Your session has expired. Please login again.",
+            feedback: null,
+            isFeedbackMessage: true,
+          },
+        ]);
+
+        setShowAuth(true);
+        setAuthMode("login");
+      } else {
+        const friendlyMessage =
+          getErrorMessage(
+            error,
+            "❌ Unable to connect to NexaAI. Please try again."
+          );
+
+        setMessages((prev) => [
+          ...prev,
+          {
+            role: "assistant",
+            content: friendlyMessage,
+            feedback: null,
+            isFeedbackMessage: true,
+          },
+        ]);
+      }
     } finally {
       setLoading(false);
     }
@@ -247,9 +327,7 @@ function App() {
       return;
     }
 
-    if (
-      selectedMessage.feedback === type
-    ) {
+    if (selectedMessage.feedback === type) {
       return;
     }
 
@@ -267,12 +345,15 @@ function App() {
 
     try {
       const response = await axios.post(
-        "${API_URL}/api/feedback",
+        `${API_URL}/api/feedback`,
         {
           message: userMessage.content,
           aiResponse: selectedMessage.content,
           feedback: type,
-          mode: mode,
+          mode:
+            selectedMessage.mode ||
+            userMessage.mode ||
+            mode,
         }
       );
 
@@ -288,7 +369,6 @@ function App() {
         response.data
       );
 
-      // Different response for like/dislike
       setMessages((prev) => [
         ...prev,
         {
@@ -296,7 +376,7 @@ function App() {
           content:
             type === "like"
               ? "Thank you for your feedback! 💙"
-              : "Thanks for letting me know. I’ll try to improve! 💙",
+              : "Thanks for letting me know. I'll try to improve! 💙",
           feedback: null,
           isFeedbackMessage: true,
         },
@@ -393,8 +473,8 @@ function App() {
     try {
       const endpoint =
         authMode === "signup"
-          ? "${API_URL}/api/auth/signup"
-          : "${API_URL}/api/auth/login";
+          ? `${API_URL}/api/auth/signup`
+          : `${API_URL}/api/auth/login`;
 
       const requestData =
         authMode === "signup"
@@ -429,9 +509,7 @@ function App() {
       // Save user
       localStorage.setItem(
         "nexaai_user",
-        JSON.stringify(
-          response.data.user
-        )
+        JSON.stringify(response.data.user)
       );
 
       setUser(response.data.user);
@@ -449,11 +527,8 @@ function App() {
         response.data.user
       );
 
-      // Load user's existing history
-      // after successful login/signup
-      setTimeout(() => {
-        loadChatHistory();
-      }, 0);
+      // Load existing history
+      await loadChatHistory();
     } catch (error) {
       console.error(
         "❌ Authentication Error:",
@@ -476,19 +551,11 @@ function App() {
   // =====================================================
 
   const handleLogout = () => {
-    localStorage.removeItem(
-      "nexaai_token"
-    );
-
-    localStorage.removeItem(
-      "nexaai_user"
-    );
+    localStorage.removeItem("nexaai_token");
+    localStorage.removeItem("nexaai_user");
 
     setUser(null);
-
     setChatHistory([]);
-
-    // Clear current chat
     setMessages([]);
 
     console.log(
@@ -505,18 +572,18 @@ function App() {
       {
         role: "user",
         content: chat.message,
+        mode: chat.mode || "general",
       },
       {
         role: "assistant",
         content: chat.aiResponse,
         feedback: null,
         isFeedbackMessage: false,
+        mode: chat.mode || "general",
       },
     ]);
 
-    setMode(
-      chat.mode || "general"
-    );
+    setMode(chat.mode || "general");
   };
 
   // =====================================================
@@ -541,6 +608,18 @@ function App() {
     setMessages([]);
   };
 
+  // =====================================================
+  // CURRENT MODE
+  // =====================================================
+
+  const currentMode =
+    modes.find((item) => item.id === mode) ||
+    modes[0];
+
+  // =====================================================
+  // UI
+  // =====================================================
+
   return (
     <div className="app">
 
@@ -558,6 +637,7 @@ function App() {
 
           <div>
             <h2>NexaAI</h2>
+
             <span>
               AI Assistant
             </span>
@@ -642,9 +722,7 @@ function App() {
                       key={chat._id}
                       className="history-item"
                       onClick={() =>
-                        openHistoryChat(
-                          chat
-                        )
+                        openHistoryChat(chat)
                       }
                       title={chat.message}
                     >
@@ -655,8 +733,7 @@ function App() {
 
                       <span className="history-text">
 
-                        {chat.message.length >
-                        32
+                        {chat.message.length > 32
                           ? `${chat.message.substring(
                               0,
                               32
@@ -686,6 +763,7 @@ function App() {
           <span className="status-dot"></span>
 
           <div>
+
             <strong>
               AI Online
             </strong>
@@ -693,6 +771,7 @@ function App() {
             <small>
               Ready to help
             </small>
+
           </div>
 
         </div>
@@ -713,21 +792,8 @@ function App() {
 
           <span className="mode-label">
 
-            {
-              modes.find(
-                (item) =>
-                  item.id === mode
-              )?.icon
-            }{" "}
-
-            {
-              modes.find(
-                (item) =>
-                  item.id === mode
-              )?.name
-            }{" "}
-
-            Mode
+            {currentMode.icon}{" "}
+            {currentMode.name} Mode
 
           </span>
 
@@ -807,6 +873,7 @@ function App() {
                     )
                   }
                 >
+
                   <span>
                     👨‍💻
                   </span>
@@ -829,6 +896,7 @@ function App() {
                     )
                   }
                 >
+
                   <span>
                     🧠
                   </span>
@@ -851,6 +919,7 @@ function App() {
                     )
                   }
                 >
+
                   <span>
                     💡
                   </span>
@@ -872,6 +941,7 @@ function App() {
                     )
                   }
                 >
+
                   <span>
                     📚
                   </span>
@@ -900,8 +970,7 @@ function App() {
                   <div
                     key={index}
                     className={`message ${
-                      message.role ===
-                      "user"
+                      message.role === "user"
                         ? "user-message"
                         : "assistant-message"
                     }`}
@@ -909,8 +978,7 @@ function App() {
 
                     <div className="message-avatar">
 
-                      {message.role ===
-                      "user"
+                      {message.role === "user"
                         ? "👤"
                         : "✦"}
 
@@ -920,27 +988,46 @@ function App() {
 
                       <div className="message-name">
 
-                        {message.role ===
-                        "user"
+                        {message.role === "user"
                           ? "You"
                           : "NexaAI"}
 
                       </div>
 
+                      {/* =================================================
+                          MARKDOWN AI RESPONSE
+                      ================================================= */}
+
                       <div className="message-content">
-                      <ReactMarkdown>{msg.content}</ReactMarkdown>
+
+                        {message.role === "assistant" ? (
+
+                          <ReactMarkdown>
+                            {message.content}
+                          </ReactMarkdown>
+
+                        ) : (
+
+                          <div>
+                            {message.content}
+                          </div>
+
+                        )}
+
                       </div>
 
-                      {message.role ===
-                        "assistant" &&
+                      {/* =================================================
+                          FEEDBACK BUTTONS
+                      ================================================= */}
+
+                      {message.role === "assistant" &&
                         !message.isFeedbackMessage && (
 
                         <div className="feedback-buttons">
 
                           <button
                             className={`feedback-btn ${
-                              message.feedback ===
-                              "like"
+                              message.feedback === "like"
                                 ? "active"
                                 : ""
                             }`}
@@ -957,8 +1044,7 @@ function App() {
 
                           <button
                             className={`feedback-btn ${
-                              message.feedback ===
-                              "dislike"
+                              message.feedback === "dislike"
                                 ? "active"
                                 : ""
                             }`}
@@ -983,6 +1069,10 @@ function App() {
 
                 )
               )}
+
+              {/* =================================================
+                  TYPING INDICATOR
+              ================================================= */}
 
               {loading && (
 
@@ -1035,10 +1125,8 @@ function App() {
 
             <textarea
               value={input}
-              onChange={(e) =>
-                setInput(
-                  e.target.value
-                )
+              onChange={(event) =>
+                setInput(event.target.value)
               }
               onKeyDown={handleKeyDown}
               placeholder={
