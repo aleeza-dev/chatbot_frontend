@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
 import ReactMarkdown from "react-markdown";
+import { GoogleLogin } from "@react-oauth/google";
 import "./App.css";
 
 const API_URL =
@@ -25,7 +26,20 @@ const modes = [
 ];
 
 function App() {
-  const [messages, setMessages] = useState([]);
+  const [messages, setMessages] = useState(() => {
+    try {
+      const savedMessages = localStorage.getItem(
+        "nexaai_current_chat"
+      );
+
+      return savedMessages
+        ? JSON.parse(savedMessages)
+        : [];
+    } catch {
+      return [];
+    }
+  });
+
   const [chatHistory, setChatHistory] = useState([]);
   const [historyLoading, setHistoryLoading] = useState(false);
 
@@ -52,10 +66,13 @@ function App() {
   // =====================================================
 
   const [user, setUser] = useState(() => {
-    const savedUser = localStorage.getItem("nexaai_user");
+    const savedUser =
+      localStorage.getItem("nexaai_user");
 
     try {
-      return savedUser ? JSON.parse(savedUser) : null;
+      return savedUser
+        ? JSON.parse(savedUser)
+        : null;
     } catch {
       return null;
     }
@@ -70,31 +87,50 @@ function App() {
   };
 
   // =====================================================
+  // SAVE CURRENT CHAT
+  // =====================================================
+
+  useEffect(() => {
+    try {
+      if (messages.length > 0) {
+        localStorage.setItem(
+          "nexaai_current_chat",
+          JSON.stringify(messages)
+        );
+      }
+    } catch (error) {
+      console.error(
+        "❌ Current chat save error:",
+        error
+      );
+    }
+  }, [messages]);
+
+  // =====================================================
   // GET FRIENDLY API ERROR
   // =====================================================
 
-  const getErrorMessage = (error, defaultMessage) => {
+  const getErrorMessage = (
+    error,
+    defaultMessage
+  ) => {
     const status = error?.response?.status;
 
     const backendMessage =
       error?.response?.data?.message;
 
-    // Gemini temporary unavailable
     if (status === 503) {
       return "NexaAI is temporarily busy right now. Please try again in a few seconds. 💙";
     }
 
-    // Gemini rate limit
     if (status === 429) {
       return "NexaAI is receiving too many requests right now. Please wait a moment and try again.";
     }
 
-    // Unauthorized
     if (status === 401) {
       return "Your session has expired. Please login again.";
     }
 
-    // Backend returned a normal message
     if (
       typeof backendMessage === "string" &&
       backendMessage.trim()
@@ -102,7 +138,6 @@ function App() {
       return backendMessage;
     }
 
-    // Network error
     if (error?.code === "ERR_NETWORK") {
       return "Unable to connect to NexaAI server. Please check your internet connection and try again.";
     }
@@ -146,8 +181,13 @@ function App() {
       );
 
       if (error?.response?.status === 401) {
-        localStorage.removeItem("nexaai_token");
-        localStorage.removeItem("nexaai_user");
+        localStorage.removeItem(
+          "nexaai_token"
+        );
+
+        localStorage.removeItem(
+          "nexaai_user"
+        );
 
         setUser(null);
         setChatHistory([]);
@@ -174,11 +214,12 @@ function App() {
   // =====================================================
 
   const sendMessage = async () => {
-    if (!input.trim() || loading) return;
+    if (!input.trim() || loading) {
+      return;
+    }
 
     const token = getToken();
 
-    // Login required
     if (!token) {
       setAuthMode("login");
       setAuthError("");
@@ -194,7 +235,6 @@ function App() {
       mode,
     };
 
-    // Save current conversation before adding new message
     const currentHistory = messages
       .filter(
         (message) =>
@@ -244,7 +284,6 @@ function App() {
         aiMessage,
       ]);
 
-      // Refresh history
       await loadChatHistory();
     } catch (error) {
       console.error(
@@ -252,10 +291,14 @@ function App() {
         error
       );
 
-      // Session expired
       if (error?.response?.status === 401) {
-        localStorage.removeItem("nexaai_token");
-        localStorage.removeItem("nexaai_user");
+        localStorage.removeItem(
+          "nexaai_token"
+        );
+
+        localStorage.removeItem(
+          "nexaai_user"
+        );
 
         setUser(null);
         setChatHistory([]);
@@ -331,7 +374,6 @@ function App() {
       return;
     }
 
-    // Mark selected feedback
     setMessages((prev) =>
       prev.map((message, index) =>
         index === messageIndex
@@ -420,7 +462,9 @@ function App() {
   // =====================================================
 
   const closeAuth = () => {
-    if (authLoading) return;
+    if (authLoading) {
+      return;
+    }
 
     setShowAuth(false);
     setAuthError("");
@@ -430,7 +474,7 @@ function App() {
   };
 
   // =====================================================
-  // HANDLE AUTH
+  // HANDLE NORMAL AUTH
   // =====================================================
 
   const handleAuthSubmit = async (event) => {
@@ -500,13 +544,11 @@ function App() {
         );
       }
 
-      // Save JWT token
       localStorage.setItem(
         "nexaai_token",
         response.data.token
       );
 
-      // Save user
       localStorage.setItem(
         "nexaai_user",
         JSON.stringify(response.data.user)
@@ -514,7 +556,6 @@ function App() {
 
       setUser(response.data.user);
 
-      // Close modal
       setShowAuth(false);
 
       setAuthName("");
@@ -527,7 +568,6 @@ function App() {
         response.data.user
       );
 
-      // Load existing history
       await loadChatHistory();
     } catch (error) {
       console.error(
@@ -547,16 +587,180 @@ function App() {
   };
 
   // =====================================================
+  // GOOGLE LOGIN SUCCESS
+  // =====================================================
+
+  const handleGoogleSuccess = async (
+    credentialResponse
+  ) => {
+    setAuthError("");
+    setAuthLoading(true);
+
+    console.log(
+      "🔵 API_URL:",
+      API_URL
+    );
+
+    console.log(
+      "🔵 Google API URL:",
+      `${API_URL}/api/auth/google`
+    );
+
+    try {
+      if (!credentialResponse?.credential) {
+        setAuthError(
+          "Google authentication failed. No Google credential was received."
+        );
+
+        setAuthLoading(false);
+        return;
+      }
+
+      console.log(
+        "🔵 Google credential received successfully."
+      );
+
+      const googleApiUrl =
+        `${API_URL}/api/auth/google`;
+
+      const response = await axios.post(
+        googleApiUrl,
+        {
+          credential:
+            credentialResponse.credential,
+        },
+        {
+          headers: {
+            "Content-Type":
+              "application/json",
+          },
+        }
+      );
+
+      console.log(
+        "🟢 Google API Response:",
+        response.data
+      );
+
+      if (!response.data.success) {
+        throw new Error(
+          response.data.message ||
+            "Google authentication failed."
+        );
+      }
+
+      // =================================================
+      // SAVE JWT TOKEN
+      // =================================================
+
+      localStorage.setItem(
+        "nexaai_token",
+        response.data.token
+      );
+
+      // =================================================
+      // SAVE USER
+      // =================================================
+
+      localStorage.setItem(
+        "nexaai_user",
+        JSON.stringify(response.data.user)
+      );
+
+      // =================================================
+      // UPDATE USER STATE
+      // =================================================
+
+      setUser(response.data.user);
+
+      // =================================================
+      // CLOSE MODAL
+      // =================================================
+
+      setShowAuth(false);
+
+      setAuthName("");
+      setAuthEmail("");
+      setAuthPassword("");
+      setAuthError("");
+
+      console.log(
+        "✅ Google Login successful:",
+        response.data.user
+      );
+
+      // =================================================
+      // LOAD EXISTING CHAT HISTORY
+      // =================================================
+
+      await loadChatHistory();
+    } catch (error) {
+      console.error(
+        "❌ Google Login Error:",
+        error
+      );
+
+      console.error(
+        "❌ Google Error Status:",
+        error?.response?.status
+      );
+
+      console.error(
+        "❌ Google Error URL:",
+        error?.config?.url
+      );
+
+      console.error(
+        "❌ Google Error Response:",
+        error?.response?.data
+      );
+
+      const message =
+        error?.response?.data?.message ||
+        error?.message ||
+        "Google login failed. Please try again.";
+
+      setAuthError(message);
+    } finally {
+      setAuthLoading(false);
+    }
+  };
+
+  // =====================================================
+  // GOOGLE LOGIN ERROR
+  // =====================================================
+
+  const handleGoogleError = () => {
+    console.error(
+      "❌ Google Login Failed"
+    );
+
+    setAuthError(
+      "Google login was cancelled or failed. Please try again."
+    );
+  };
+
+  // =====================================================
   // LOGOUT
   // =====================================================
 
   const handleLogout = () => {
-    localStorage.removeItem("nexaai_token");
-    localStorage.removeItem("nexaai_user");
+    localStorage.removeItem(
+      "nexaai_token"
+    );
+
+    localStorage.removeItem(
+      "nexaai_user"
+    );
 
     setUser(null);
     setChatHistory([]);
     setMessages([]);
+
+    // Clear saved current chat on logout
+    localStorage.removeItem(
+      "nexaai_current_chat"
+    );
 
     console.log(
       "👋 Logged out successfully."
@@ -606,6 +810,10 @@ function App() {
 
   const clearChat = () => {
     setMessages([]);
+
+    localStorage.removeItem(
+      "nexaai_current_chat"
+    );
   };
 
   // =====================================================
@@ -613,8 +821,9 @@ function App() {
   // =====================================================
 
   const currentMode =
-    modes.find((item) => item.id === mode) ||
-    modes[0];
+    modes.find(
+      (item) => item.id === mode
+    ) || modes[0];
 
   // =====================================================
   // UI
@@ -994,10 +1203,6 @@ function App() {
 
                       </div>
 
-                      {/* =================================================
-                          MARKDOWN AI RESPONSE
-                      ================================================= */}
-
                       <div className="message-content">
 
                         {message.role === "assistant" ? (
@@ -1126,7 +1331,9 @@ function App() {
             <textarea
               value={input}
               onChange={(event) =>
-                setInput(event.target.value)
+                setInput(
+                  event.target.value
+                )
               }
               onKeyDown={handleKeyDown}
               placeholder={
@@ -1207,8 +1414,48 @@ function App() {
 
             </p>
 
+            {/* =================================================
+                GOOGLE LOGIN
+            ================================================= */}
+
+            {authMode === "login" && (
+
+              <>
+
+                <div className="google-login-container">
+
+                  <GoogleLogin
+                    onSuccess={
+                      handleGoogleSuccess
+                    }
+                    onError={
+                      handleGoogleError
+                    }
+                    useOneTap={false}
+                    theme="outline"
+                    size="large"
+                    text="continue_with"
+                    shape="rectangular"
+                  />
+
+                </div>
+
+                <div className="auth-divider">
+                  <span>OR</span>
+                </div>
+
+              </>
+
+            )}
+
+            {/* =================================================
+                NORMAL EMAIL/PASSWORD AUTH
+            ================================================= */}
+
             <form
-              onSubmit={handleAuthSubmit}
+              onSubmit={
+                handleAuthSubmit
+              }
               className="auth-form"
             >
 
@@ -1309,6 +1556,7 @@ function App() {
               {authMode === "login" ? (
 
                 <>
+
                   <span>
                     Don't have an account?
                   </span>
@@ -1322,11 +1570,13 @@ function App() {
                   >
                     Create Account
                   </button>
+
                 </>
 
               ) : (
 
                 <>
+
                   <span>
                     Already have an account?
                   </span>
@@ -1340,6 +1590,7 @@ function App() {
                   >
                     Login
                   </button>
+
                 </>
 
               )}
