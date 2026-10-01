@@ -845,3 +845,58 @@ button {
     max-width: 82%;
   }
 }
+/* ================================
+   GOOGLE LOGIN
+================================ */
+
+.google-login-container {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin: 12px 0 20px;
+}
+
+.google-login-container > div {
+  width: 100% !important;
+  max-width: 100% !important;
+}
+
+.google-login-container iframe {
+  width: 100% !important;
+  max-width: 100% !important;
+}
+
+
+/* ================================
+   OR DIVIDER
+================================ */
+
+.auth-divider {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+
+  /* Space above and below OR */
+  margin: 20px 0 22px;
+}
+
+.auth-divider::before,
+.auth-divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: #d9d9d9;
+}
+
+.auth-divider span {
+  flex-shrink: 0;
+  font-size: 13px;
+  font-weight: 500;
+  color: #777;
+  text-align: center;
+  background: #fff;
+  padding: 0 8px;
+}
