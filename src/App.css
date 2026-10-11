@@ -1958,3 +1958,174 @@ body {
     font-size: 11px !important;
   }
 }
+
+/* Mobile NexaAI branding */
+@media (max-width: 750px) {
+  .sidebar .logo {
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    gap: 8px !important;
+    padding: 12px 10px !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    overflow: visible !important;
+  }
+
+  .sidebar .logo .logo-icon {
+    width: 32px !important;
+    height: 32px !important;
+    min-width: 32px !important;
+    font-size: 20px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+
+  .sidebar .logo > div:last-child {
+    display: flex !important;
+    flex-direction: column !important;
+    flex: 1 !important;
+    min-width: 0 !important;
+    gap: 2px !important;
+  }
+
+  .sidebar .logo h2 {
+    display: block !important;
+    font-size: 17px !important;
+    line-height: 1.2 !important;
+    margin: 0 !important;
+    white-space: nowrap !important;
+  }
+
+  .sidebar .logo span {
+    display: block !important;
+    font-size: 10px !important;
+    line-height: 1.2 !important;
+    white-space: nowrap !important;
+  }
+}
+
+/* Mobile NexaAI branding */
+@media (max-width: 750px) {
+  .sidebar .logo {
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    gap: 8px !important;
+    padding: 12px 10px !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    overflow: visible !important;
+  }
+
+  .sidebar .logo .logo-icon {
+    width: 32px !important;
+    height: 32px !important;
+    min-width: 32px !important;
+    font-size: 20px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+
+  .sidebar .logo > div:last-child {
+    display: flex !important;
+    flex-direction: column !important;
+    flex: 1 !important;
+    min-width: 0 !important;
+    gap: 2px !important;
+  }
+
+  .sidebar .logo h2 {
+    display: block !important;
+    font-size: 17px !important;
+    line-height: 1.2 !important;
+    margin: 0 !important;
+    white-space: nowrap !important;
+  }
+
+  .sidebar .logo span {
+    display: block !important;
+    font-size: 10px !important;
+    line-height: 1.2 !important;
+    white-space: nowrap !important;
+  }
+}
+
+/* FINAL FIX: NEXAAI BRANDING ON MOBILE */
+@media screen and (max-width: 750px) {
+  .sidebar {
+    flex: 0 0 145px !important;
+    width: 145px !important;
+    min-width: 145px !important;
+    max-width: 145px !important;
+    padding: 10px 8px !important;
+  }
+
+  .sidebar .logo {
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    gap: 7px !important;
+    width: 100% !important;
+    padding: 5px 0 14px !important;
+    margin: 0 !important;
+  }
+
+  .sidebar .logo .logo-icon {
+    flex: 0 0 27px !important;
+    width: 27px !important;
+    min-width: 27px !important;
+    height: 27px !important;
+    border-radius: 8px !important;
+    font-size: 16px !important;
+  }
+
+  .sidebar .logo > div:last-child {
+    display: flex !important;
+    flex: 1 1 auto !important;
+    flex-direction: column !important;
+    min-width: 0 !important;
+    gap: 2px !important;
+  }
+
+  .sidebar .logo h2 {
+    display: block !important;
+    font-size: 14px !important;
+    line-height: 1.2 !important;
+    white-space: nowrap !important;
+    margin: 0 !important;
+  }
+
+  .sidebar .logo span {
+    display: block !important;
+    font-size: 8px !important;
+    line-height: 1.3 !important;
+    white-space: normal !important;
+  }
+}
+
+@media screen and (max-width: 380px) {
+  .sidebar {
+    flex-basis: 132px !important;
+    width: 132px !important;
+    min-width: 132px !important;
+    max-width: 132px !important;
+    padding-left: 6px !important;
+    padding-right: 6px !important;
+  }
+
+  .sidebar .logo {
+    gap: 5px !important;
+  }
+
+  .sidebar .logo h2 {
+    font-size: 13px !important;
+  }
+}
+
+
