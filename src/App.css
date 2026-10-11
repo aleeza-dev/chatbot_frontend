@@ -2128,4 +2128,27 @@ body {
   }
 }
 
+/* Fix NexaAI message box on mobile */
+@media screen and (max-width: 750px) {
+  .chat-input,
+  .input-container,
+  .message-input-container {
+    max-height: 100px;
+    min-height: 0;
+  }
+
+  .chat-input textarea,
+  .input-container textarea,
+  .message-input-container textarea {
+    min-height: 40px !important;
+    max-height: 80px !important;
+    height: 40px;
+    padding: 10px 12px !important;
+    font-size: 14px !important;
+    line-height: 1.4;
+    overflow-y: auto;
+    resize: none;
+  }
+}
+
 

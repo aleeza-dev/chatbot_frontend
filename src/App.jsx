@@ -1341,7 +1341,7 @@ function App() {
                   ? "Ask a coding question..."
                   : mode === "study"
                   ? "Ask about your studies..."
-                  : "Message NexaAI..."
+                  : "Ask NexaAI.."
               }
               rows="1"
             />
