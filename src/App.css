@@ -1923,3 +1923,38 @@ body {
   border-radius: 20px;
 }
 
+
+/* Fix NexaAI logo and name on mobile */
+@media (max-width: 750px) {
+  .sidebar .logo {
+    display: flex !important;
+    align-items: center !important;
+    gap: 10px !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    overflow: visible !important;
+  }
+
+  .sidebar .logo > div:last-child {
+    display: block !important;
+    flex: 1 1 auto !important;
+    min-width: 0 !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+  }
+
+  .sidebar .logo h2 {
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    white-space: nowrap !important;
+    font-size: 18px !important;
+  }
+
+  .sidebar .logo span {
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    font-size: 11px !important;
+  }
+}
