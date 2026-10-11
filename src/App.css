@@ -900,3 +900,663 @@ button {
   background: #fff;
   padding: 0 8px;
 }
+
+/* ===== FIXED APP LAYOUT ===== */
+
+html,
+body,
+#root {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  overflow: hidden;
+}
+
+.app {
+  display: flex;
+  width: 100%;
+  height: 100vh;
+  height: 100dvh;
+  min-height: 0;
+  overflow: hidden;
+  background: #fff;
+}
+
+/* ===== SIDEBAR ===== */
+
+.sidebar {
+  flex: 0 0 250px;
+  width: 250px;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  background: #111827;
+  color: white;
+  padding: 22px 16px;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ===== MAIN PANEL ===== */
+
+.main {
+  flex: 1 1 0;
+  width: 0;
+  min-width: 0;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ===== TOP BAR ===== */
+
+.topbar {
+  flex: 0 0 65px;
+  height: 65px;
+  min-width: 0;
+  border-bottom: 1px solid #e5e7eb;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 28px;
+}
+
+/* ===== ONLY THIS AREA SCROLLS ===== */
+
+.chat-area {
+  flex: 1 1 0;
+  height: 0;
+  min-height: 0;
+  min-width: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+.welcome {
+  width: 100%;
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 70px 25px 35px;
+  text-align: center;
+}
+
+.messages {
+  width: 100%;
+  max-width: 850px;
+  min-width: 0;
+  margin: 0 auto;
+  padding: 25px 25px 35px;
+}
+
+/* ===== PREVENT RESPONSE OVERFLOW ===== */
+
+.message {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.message-body {
+  min-width: 0;
+  max-width: 75%;
+  overflow-wrap: anywhere;
+}
+
+.message-content {
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+
+.message-content pre {
+  max-width: 100%;
+  overflow-x: auto;
+  white-space: pre;
+}
+
+/* ===== INPUT STAYS BELOW CHAT ===== */
+
+.input-wrapper {
+  flex: 0 0 auto;
+  width: 100%;
+  max-width: 850px;
+  min-width: 0;
+  margin: 0 auto;
+  padding: 10px 25px 18px;
+}
+
+.input-box {
+  width: 100%;
+  min-width: 0;
+}
+
+.input-box textarea {
+  flex: 1 1 0;
+  width: 0;
+  min-width: 0;
+}
+
+/* ===== MOBILE ===== */
+
+@media (max-width: 750px) {
+  .app {
+    flex-direction: column;
+  }
+
+  .sidebar {
+    flex: 0 0 auto;
+    width: 100%;
+    height: auto;
+    min-height: 0;
+    max-height: 175px;
+    padding: 8px 12px;
+    overflow: hidden;
+    gap: 6px;
+  }
+
+  .logo {
+    padding: 0 2px 6px;
+    gap: 8px;
+  }
+
+  .logo-icon {
+    flex: 0 0 32px;
+    width: 32px;
+    height: 32px;
+  }
+
+  .logo > div:last-child {
+    display: block;
+    min-width: 0;
+  }
+
+  .logo h2 {
+    font-size: 17px;
+  }
+
+  .new-chat {
+    display: block;
+    padding: 8px 10px;
+  }
+
+  .sidebar-section {
+    margin-top: 4px;
+    min-width: 0;
+  }
+
+  .section-title {
+    padding: 0 3px;
+    margin-bottom: 3px;
+  }
+
+  .sidebar-mode {
+    width: 100%;
+    min-width: 0;
+    padding: 6px 8px;
+    margin-bottom: 2px;
+    gap: 8px;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  .sidebar-bottom,
+  .history-section {
+    display: none;
+  }
+
+  .main {
+    flex: 1 1 0;
+    width: 100%;
+    height: 0;
+    min-height: 0;
+  }
+
+  .topbar {
+    flex: 0 0 auto;
+    height: auto;
+    min-height: 52px;
+    padding: 8px 12px;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .topbar-actions {
+    min-width: 0;
+    max-width: 100%;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .chat-area {
+    flex: 1 1 0;
+    height: 0;
+    min-height: 0;
+  }
+
+  .welcome {
+    padding: 28px 14px 24px;
+  }
+
+  .welcome h1 {
+    font-size: clamp(22px, 6vw, 28px);
+    overflow-wrap: anywhere;
+  }
+
+  .suggestion-grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 10px;
+    margin-top: 24px;
+  }
+
+  .suggestion-grid button {
+    min-width: 0;
+    padding: 14px;
+  }
+
+  .messages {
+    padding: 18px 12px 24px;
+  }
+
+  .message {
+    gap: 8px;
+    margin-bottom: 22px;
+  }
+
+  .message-avatar {
+    flex: 0 0 32px;
+    width: 32px;
+    height: 32px;
+  }
+
+  .message-body,
+  .user-message .message-body {
+    flex: 1 1 0;
+    width: 0;
+    max-width: calc(100% - 40px);
+  }
+
+  .message-content {
+    font-size: 14px;
+    line-height: 1.65;
+  }
+
+  .message-content pre {
+    padding: 10px;
+    font-size: 12px;
+  }
+
+  .input-wrapper {
+    flex: 0 0 auto;
+    padding: 8px 10px max(10px, env(safe-area-inset-bottom));
+  }
+
+  .attach-btn,
+  .send-btn {
+    flex: 0 0 34px;
+    width: 34px;
+    height: 36px;
+  }
+
+  .input-box textarea {
+    font-size: 16px;
+    padding: 10px 6px;
+  }
+}
+
+@media (max-width: 380px) {
+  .sidebar {
+    padding: 7px 9px;
+    max-height: 165px;
+  }
+
+  .topbar {
+    padding: 7px 9px;
+  }
+
+  .messages {
+    padding: 15px 8px;
+  }
+
+  .input-wrapper {
+    padding-left: 7px;
+    padding-right: 7px;
+  }
+}
+
+/* FINAL LAYOUT OVERRIDE */
+
+html,
+body,
+#root {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+}
+
+body {
+  overflow: hidden !important;
+}
+
+#root,
+.app {
+  height: 100vh;
+  height: 100dvh;
+  min-height: 0 !important;
+  overflow: hidden;
+}
+
+.app {
+  display: flex;
+}
+
+.sidebar {
+  flex-shrink: 0;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.main {
+  flex: 1 1 0;
+  width: 0;
+  min-width: 0;
+  height: 100%;
+  min-height: 0 !important;
+  overflow: hidden;
+}
+
+.topbar {
+  flex-shrink: 0;
+}
+
+.chat-area {
+  flex: 1 1 0;
+  height: 0;
+  min-height: 0;
+  min-width: 0;
+  overflow-y: auto !important;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+}
+
+.input-wrapper {
+  flex-shrink: 0;
+  margin-top: 0;
+}
+
+.message,
+.message-body,
+.message-content {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 750px) {
+  .app {
+    flex-direction: column;
+  }
+
+  .sidebar {
+    flex: 0 0 auto;
+    width: 100%;
+    height: auto;
+    max-height: none;
+    padding: 8px 12px;
+    overflow: hidden;
+  }
+
+  .main {
+    flex: 1 1 0;
+    width: 100%;
+    height: 0;
+    min-height: 0;
+  }
+
+  .sidebar-mode {
+    min-width: 0;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  .topbar {
+    height: auto;
+    min-height: 52px;
+    padding: 8px 12px;
+    flex-wrap: wrap;
+  }
+
+  .chat-area {
+    flex: 1 1 0;
+    height: 0;
+    min-height: 0;
+  }
+
+  .message-body,
+  .user-message .message-body {
+    flex: 1 1 0;
+    width: 0;
+    max-width: calc(100% - 40px);
+  }
+}
+
+
+/* MOBILE: KEEP SIDEBAR ON THE LEFT */
+
+@media (max-width: 750px) {
+  .app {
+    flex-direction: row !important;
+  }
+
+  .sidebar {
+    flex: 0 0 76px !important;
+    width: 76px !important;
+    height: 100% !important;
+    max-height: none !important;
+    min-height: 0 !important;
+    padding: 12px 8px !important;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+  }
+
+  .logo {
+    justify-content: center;
+    padding: 5px 0 20px;
+  }
+
+  .logo > div:last-child {
+    display: none !important;
+  }
+
+  .new-chat,
+  .section-title,
+  .history-section,
+  .sidebar-bottom {
+    display: none !important;
+  }
+
+  .sidebar-mode {
+    justify-content: center;
+    gap: 0;
+    padding: 12px 4px;
+    font-size: 0;
+  }
+
+  .main {
+    flex: 1 1 0 !important;
+    width: 0 !important;
+    height: 100% !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
+    overflow: hidden;
+  }
+
+  .topbar {
+    padding: 8px 10px;
+  }
+
+  .chat-area {
+    flex: 1 1 0;
+    height: 0;
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+  }
+
+  .messages {
+    padding: 16px 8px 20px;
+  }
+
+  .message {
+    gap: 6px;
+  }
+
+  .message-body,
+  .user-message .message-body {
+    flex: 1 1 0;
+    width: 0;
+    max-width: calc(100% - 38px);
+  }
+
+  .input-wrapper {
+    padding: 8px 7px max(10px, env(safe-area-inset-bottom));
+  }
+}
+
+/* FIX MOBILE SIDEBAR TEXT */
+
+@media (max-width: 750px) {
+  .sidebar-mode {
+    font-size: 11px !important;
+    text-align: center;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    line-height: 1.3;
+    padding: 12px 2px !important;
+  }
+}
+
+/* SHOW CHAT HISTORY ON MOBILE */
+
+@media (max-width: 750px) {
+  .history-section {
+    display: block !important;
+    width: 100%;
+    min-width: 0;
+    margin-top: 12px;
+  }
+
+  .history-section .section-title {
+    display: block !important;
+    font-size: 10px !important;
+    text-align: center;
+    overflow-wrap: anywhere;
+  }
+
+  .history-list {
+    display: block !important;
+    width: 100%;
+    max-height: 180px;
+    overflow-y: auto;
+    overflow-x: hidden;
+  }
+
+  .history-item {
+    display: block !important;
+    width: 100%;
+    min-width: 0;
+    padding: 8px 3px !important;
+    font-size: 10px !important;
+    white-space: normal !important;
+    overflow-wrap: anywhere;
+  }
+
+  .history-item span {
+    display: block;
+    max-width: 100%;
+    overflow-wrap: anywhere;
+  }
+}
+
+/* MOBILE CHAT HISTORY - MORE SPACE + STYLISH SCROLLBAR */
+
+@media (max-width: 750px) {
+  /* Give the history section more room */
+  .history-section {
+    margin-top: 16px !important;
+    padding-bottom: 10px;
+  }
+
+  .history-list {
+    max-height: 280px !important;
+    min-height: 120px;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    padding: 4px 3px 8px 0;
+    scrollbar-width: thin;
+    scrollbar-color: #777 transparent;
+    overscroll-behavior: contain;
+  }
+
+  /* Chrome, Edge and Safari scrollbar */
+  .history-list::-webkit-scrollbar {
+    width: 5px;
+  }
+
+  .history-list::-webkit-scrollbar-track {
+    background: transparent;
+    margin: 6px 0;
+  }
+
+  .history-list::-webkit-scrollbar-thumb {
+    background: #777;
+    border-radius: 20px;
+    border: 1px solid transparent;
+    background-clip: padding-box;
+  }
+
+  .history-list::-webkit-scrollbar-thumb:hover {
+    background: #aaa;
+    background-clip: padding-box;
+  }
+
+  /* Make each chat history item easier to read */
+  .history-item {
+    padding: 10px 5px !important;
+    margin-bottom: 4px;
+    border-radius: 8px;
+    line-height: 1.4;
+  }
+
+  .history-item:hover {
+    background: rgba(128, 128, 128, 0.15);
+  }
+}
+
+/* Stylish scrollbar for desktop too */
+.history-list {
+  scrollbar-width: thin;
+  scrollbar-color: #777 transparent;
+}
+
+.history-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.history-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.history-list::-webkit-scrollbar-thumb {
+  background: #777;
+  border-radius: 20px;
+}
+
+.history-list::-webkit-scrollbar-thumb:hover {
+  background: #aaa;
+}
